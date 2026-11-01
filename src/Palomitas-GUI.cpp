@@ -1498,12 +1498,26 @@ static void play_phase2_ui(void* raw) {
             int scr_h = Fl::first_window()->h();
             win2->position((scr_w - win2->w()) / 2, (scr_h - win2->h()) / 2);
         }
-        win2->set_non_modal(); // FLWM no soporta set_modal() bien
+        
+        // Forzar que todos los hijos de la ventana se dibujen correctamente
+        win2->redraw();
+        for (int i = 0; i < win2->children(); i++) {
+            win2->child(i)->redraw();
+        }
+        
+        win2->set_non_modal(); 
         win2->show();
         win2->wait_for_expose();
+        
+        // Quitar el foco del input para que no secuestre el ciclo de dibujado
+        win2->take_focus();
+        
         Fl::check();
         Fl::flush();
-        while (win2->shown()) { Fl::wait(0.05); }
+        
+        while (win2->shown()) { 
+            Fl::wait(0.05); 
+        }
 
         // Verificamos si el boton Volver fue el que cerró (asignando un flag extra)
         // Como no podemos saberlo directamente, hacemos que Volver no active s_ep_cancel,
