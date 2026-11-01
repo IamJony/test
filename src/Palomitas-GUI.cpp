@@ -1,5 +1,4 @@
-// Palomitas GUI - Versión Final para Tiny Core Linux
-// Fixes: Compatibilidad uchar FLTK, Parser JSON Server2, Temas Visuales, Flujo Series/Animes
+// Palomitas GUI para Tiny Core Linux y Flinux
 #include <FL/Fl.H>
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Box.H>
@@ -917,7 +916,9 @@ public:
         }, nullptr);
         
         win->end(); win->show();
-        while (win->shown()) Fl::wait();
+        Fl::check();
+        Fl::flush();
+        while (win->shown()) { Fl::wait(0.05); }
     }
 
     static void cb_theme(Fl_Widget*, void* d) {
@@ -1374,7 +1375,9 @@ static void play_phase2_ui(void* raw) {
             }, nullptr);
 
             win->end(); win->show();
-            while (win->shown()) Fl::wait();
+            Fl::check();  // Forzar dibujado inicial
+            Fl::flush();
+            while (win->shown()) { Fl::wait(0.05); }
             if (s_cancel) {
                 d->gui->stop_busy("Seleccion cancelada.");
                 delete d; return;
@@ -1471,7 +1474,9 @@ static void play_phase2_ui(void* raw) {
         // Lo más limpio: usamos el label del boton para saber qué se pulsó.
         
         win2->end(); win2->show();
-        while (win2->shown()) Fl::wait();
+        Fl::check();  // Forzar dibujado inicial
+        Fl::flush();
+        while (win2->shown()) { Fl::wait(0.05); }
 
         // Verificamos si el boton Volver fue el que cerró (asignando un flag extra)
         // Como no podemos saberlo directamente, hacemos que Volver no active s_ep_cancel,
