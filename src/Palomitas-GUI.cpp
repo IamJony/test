@@ -1452,7 +1452,6 @@ static void play_phase2_ui(void* raw) {
         inp->textsize(16);
         inp->textfont(FL_HELVETICA_BOLD);
         inp->value(valid_eps.empty() ? "1" : std::to_string(valid_eps[0]).c_str());
-        inp->take_focus();
         inp->redraw();
 
         Fl_Box* hint = new Fl_Box(20, 115, 380, 20);
@@ -1499,21 +1498,19 @@ static void play_phase2_ui(void* raw) {
             win2->position((scr_w - win2->w()) / 2, (scr_h - win2->h()) / 2);
         }
         
-        // Forzar que todos los hijos de la ventana se dibujen correctamente
+        win2->set_non_modal(); 
+        win2->show();
+        win2->wait_for_expose();
+        
+        // Forzar redibujado de la ventana y todos sus hijos para asegurar que los botones aparezcan
         win2->redraw();
         for (int i = 0; i < win2->children(); i++) {
             win2->child(i)->redraw();
         }
         
-        win2->set_non_modal(); 
-        win2->show();
-        win2->wait_for_expose();
-        
-        // Quitar el foco del input para que no secuestre el ciclo de dibujado
-        win2->take_focus();
-        
         Fl::check();
         Fl::flush();
+        Fl::redraw(); // Fuerza a FLTK a repintar todo
         
         while (win2->shown()) { 
             Fl::wait(0.05); 
