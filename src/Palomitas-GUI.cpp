@@ -1,4 +1,5 @@
-// Palomitas GUI para Tiny Core Linux y Flinux
+// Palomitas GUI - Versión Final para Tiny Core Linux
+// Fixes: Compatibilidad uchar FLTK, Parser JSON Server2, Temas Visuales, Flujo Series/Animes
 #include <FL/Fl.H>
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Box.H>
@@ -915,7 +916,15 @@ public:
             ((Fl_Window*)w->window())->hide();
         }, nullptr);
         
-        win->end(); win->show();
+        win->end();
+        if (Fl::first_window()) {
+            int scr_w = Fl::first_window()->w();
+            int scr_h = Fl::first_window()->h();
+            win->position((scr_w - win->w()) / 2, (scr_h - win->h()) / 2);
+        }
+        win->set_non_modal(); // FLWM no soporta set_modal() bien
+        win->show();
+        win->wait_for_expose();
         Fl::check();
         Fl::flush();
         while (win->shown()) { Fl::wait(0.05); }
@@ -1374,8 +1383,17 @@ static void play_phase2_ui(void* raw) {
                 s_cancel = true;
             }, nullptr);
 
-            win->end(); win->show();
-            Fl::check();  // Forzar dibujado inicial
+            win->end();
+            // Centrar en la pantalla principal
+            if (Fl::first_window()) {
+                int scr_w = Fl::first_window()->w();
+                int scr_h = Fl::first_window()->h();
+                win->position((scr_w - win->w()) / 2, (scr_h - win->h()) / 2);
+            }
+            win->set_non_modal(); // FLWM no soporta set_modal() bien
+            win->show();
+            win->wait_for_expose();
+            Fl::check();
             Fl::flush();
             while (win->shown()) { Fl::wait(0.05); }
             if (s_cancel) {
@@ -1473,8 +1491,17 @@ static void play_phase2_ui(void* raw) {
         // Pero como es dentro de un bucle, mejor usamos una variable estatica local al bloque.
         // Lo más limpio: usamos el label del boton para saber qué se pulsó.
         
-        win2->end(); win2->show();
-        Fl::check();  // Forzar dibujado inicial
+        win2->end();
+        // Centrar en la pantalla principal
+        if (Fl::first_window()) {
+            int scr_w = Fl::first_window()->w();
+            int scr_h = Fl::first_window()->h();
+            win2->position((scr_w - win2->w()) / 2, (scr_h - win2->h()) / 2);
+        }
+        win2->set_non_modal(); // FLWM no soporta set_modal() bien
+        win2->show();
+        win2->wait_for_expose();
+        Fl::check();
         Fl::flush();
         while (win2->shown()) { Fl::wait(0.05); }
 
