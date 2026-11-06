@@ -45,6 +45,15 @@ typedef unsigned char uchar;
 #endif
 
 // ---------- Utilidades ----------
+static std::string esc(const std::string& s) {
+    std::string out;
+    for (char c : s) {
+        if (c == '"' || c == '\\' || c == '$' || c == '`') out += '\\';
+        out += c;
+    }
+    return out;
+}
+
 static std::string shell_quote(const std::string& s) {
     std::string out = "'";
     for (char c : s) {
@@ -1139,7 +1148,12 @@ void PalomitasGUI::rebuild_grid() {
 }
 
 void PalomitasGUI::do_search() {
-    if (searching) { set_status("Busqueda en curso..."); return; }
+    if (searching) {
+        std::lock_guard<std::mutex> lk(result_mutex);
+        result_ready = false;
+        pending_result = SearchResult{};
+        searching = false;
+    }
     std::string q = search_input->value() ? search_input->value() : "";
     if (q.empty()) { set_status("Escribe un termino de busqueda."); return; }
     
@@ -1204,36 +1218,51 @@ void PalomitasGUI::select_episode_server2(const std::string&, const std::string&
 void PalomitasGUI::play_stream_mplayer(const std::string & stream_url, const std::string & player_url, const std::string & title) {
     if (stream_url.empty()) { set_status("URL de stream vacia."); return; }
     start_busy("Reproduciendo: " + title);
-    
+
     std::string player = current_player;
     std::thread([this, stream_url, player_url, title, player]() {
+        std::system("mkdir -p /tmp/TEMP_Palomitas 2>/dev/null");
+
         std::string safe_title = title;
         for (auto & c : safe_title) if (c == '"' || c == '\\') c = ' ';
-        
+
+        // Referer = esquema + host del player_url
         std::string referer = player_url;
         size_t pos = referer.find("/", 8);
         if (pos != std::string::npos) referer = referer.substr(0, pos);
-        
-        std::string ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
-        
+
+        std::string ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                         "AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/123.0.0.0 Safari/537.36";
+
         std::string cmd;
         if (player == "mpv") {
-            cmd = "mpv --referrer=\"" + referer + "\" "
+            cmd = "cd /tmp && HOME=/tmp TMPDIR=/tmp XDG_CACHE_HOME=/tmp/.cache "
+                  "mpv --referrer=\"" + referer + "\" "
                   "--user-agent=\"" + ua + "\" "
-                  "--title=\"" + safe_title + "\" "
-                  "--force-media-title=\"" + safe_title + "\" "
+                  "--title=\"" + esc(safe_title) + "\" "
+                  "--force-media-title=\"" + esc(safe_title) + "\" "
                   "\"" + stream_url + "\" "
                   ">/tmp/TEMP_Palomitas/mpv.log 2>&1";
         } else {
-            cmd = "yt-dlp --add-header \"Referer: " + referer + "\" "
-                  "--add-header \"User-Agent: " + ua + "\" "
-                  "-S \"res:480\" -o - " + shell_quote(stream_url) + " "
-                  "2>/tmp/TEMP_Palomitas/ytdlp.log | "
+            // Tiny Core / TCZ: todo el estado escribible a /tmp (tmpfs),
+            // yt-dlp sin cache persistente y con CWD en /tmp.
+            cmd = "( cd /tmp && "
+                  "  HOME=/tmp TMPDIR=/tmp XDG_CACHE_HOME=/tmp/.cache "
+                  "  yt-dlp --no-cache-dir --config-location /dev/null "
+                  "         --no-check-certificates "
+                  "         --add-header \"Referer: " + referer + "\" "
+                  "         --add-header \"User-Agent: " + ua + "\" "
+                  "         -S \"res:480\" "
+                  "         -f \"bv*[height<=480]+ba/b[height<=480]/b\" "
+                  "         -o - " + shell_quote(stream_url) + " "
+                  "         2>/tmp/TEMP_Palomitas/ytdlp.log "
+                  ") | "
                   "mplayer -zoom -vf scale=640:480 -cache 6144 -demuxer lavf "
-                  "-title \"" + safe_title + "\" - "
+                  "-title \"" + esc(safe_title) + "\" - "
                   ">/tmp/TEMP_Palomitas/mplayer.log 2>&1";
         }
-                          
+
         std::system(cmd.c_str());
         Fl::add_timeout(0.05, [](void* d) { ((PalomitasGUI*)d)->stop_busy("Reproducción finalizada."); }, this);
     }).detach();
